@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 from models import db, Task
 
 app = Flask(__name__)
@@ -14,33 +14,30 @@ def index():
     tasks = Task.query.all()
     return render_template('index.html', tasks=tasks)
 
-@app.route('/tasks', methods=['POST'])
+@app.route('/add_task', methods=['POST'])
 def add_task():
-    data = request.get_json()
-    new_task = Task(title=data['title'], description=data.get('description'))
+    title = request.form['title']
+    description = request.form.get('description')
+    new_task = Task(title=title, description=description)
     db.session.add(new_task)
     db.session.commit()
-    return jsonify({'message': 'Task added!'}), 201
+    return redirect(url_for('index'))
 
-@app.route('/tasks/<int:id>', methods=['PUT'])
+@app.route('/update_task/<int:id>', methods=['POST'])
 def update_task(id):
     task = Task.query.get(id)
-    if not task:
-        return jsonify({'message': 'Task not found'}), 404
+    if task:
+        task.done = not task.done
+        db.session.commit()
+    return redirect(url_for('index'))
 
-    data = request.get_json()
-    task.title = data.get('title', task.title)
-    task.description = data.get('description', task.description)
-    task.done = data.get('done', task.done)
-    db.session.commit()
-    return jsonify({'message': 'Task updated!'})
-
-@app.route('/tasks/<int:id>', methods=['DELETE'])
+@app.route('/delete_task/<int:id>', methods=['POST'])
 def delete_task(id):
     task = Task.query.get(id)
-    if not task:
-        return jsonify({'message': 'Task not found'}), 404
+    if task:
+        db.session.delete(task)
+        db.session.commit()
+    return redirect(url_for('index'))
 
-    db.session.delete(task)
-    db.session.commit()
-    return jsonify({'message': 'Task deleted!'})
+if __name__ == '__main__':
+    app.run(debug=True)
